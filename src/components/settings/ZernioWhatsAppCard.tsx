@@ -344,6 +344,10 @@ export function ZernioWhatsAppCard({ orgId }: { orgId: string | null }) {
               </Button>
             </div>
           </div>
+        ) : !orgId ? (
+          <p className="text-xs text-muted-foreground">
+            Organização não identificada. Recarregue a página ou entre novamente para configurar a Zernio.
+          </p>
         ) : (
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">Zernio não configurada.</p>
