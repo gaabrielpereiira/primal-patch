@@ -17,6 +17,8 @@ import {
   LogOut,
   HelpCircle,
   Stethoscope,
+  MessageSquare,
+
 } from "lucide-react";
 import { HelpCenter } from "@/components/help/HelpCenter";
 import { NavLink } from "@/components/NavLink";
@@ -38,11 +40,13 @@ import {
 
 const generalItems = [
   { title: "Dashboard",   url: "/dashboard", icon: LayoutDashboard },
+  { title: "Chat",        url: "/chat",      icon: MessageSquare },
   { title: "Pacientes",   url: "/patients",  icon: Users },
   { title: "Médicos", url: "/professionals", icon: Stethoscope },
   { title: "Agenda",      url: "/agenda",    icon: Calendar },
   { title: "Prontuários", url: "/records",   icon: ClipboardList },
 ];
+
 
 const operationalItems = [
   { title: "Automações", url: "/automations", icon: Zap },

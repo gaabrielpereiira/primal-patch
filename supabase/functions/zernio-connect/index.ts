@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { WEBHOOK_SECRET_NAME, digits, phoneCandidates } from "../_shared/zernio.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,17 @@ const ZERNIO_BASE = "https://zernio.com/api/v1";
 const PROVIDER = "zernio_whatsapp";
 const SECRET_NAME = "zernio_api_key";
 
+const WEBHOOK_EVENTS = [
+  "message.received",
+  "message.sent",
+  "message.delivered",
+  "message.read",
+  "message.failed",
+  "conversation.started",
+  "account.connected",
+  "account.disconnected",
+];
+
 type Action =
   | "verify"
   | "list_profiles"
@@ -18,7 +30,14 @@ type Action =
   | "list_phone_numbers"
   | "select_phone_number"
   | "list_accounts"
-  | "disconnect";
+  | "disconnect"
+  | "webhook_info"
+  | "register_webhook"
+  | "unregister_webhook"
+  | "sync_conversations"
+  | "sync_messages"
+  | "send_message"
+  | "mark_read";
 
 interface Body {
   action?: Action;
@@ -29,7 +48,10 @@ interface Body {
   account_id?: string;
   phone_number_id?: string;
   redirect_url?: string;
+  conversation_id?: string;
+  message?: string;
 }
+
 
 function json(status: number, payload: Record<string, unknown>) {
   return new Response(JSON.stringify(payload), {
@@ -294,7 +316,250 @@ serve(async (req) => {
       return json(200, { accounts });
     }
 
+    // ---------- Inbox / webhook ----------
+
+    const webhookUrl = (tokenValue: string) =>
+      `${supabaseUrl}/functions/v1/zernio-webhook?t=${tokenValue}`;
+
+    const ensureWebhookToken = async () => {
+      const cfg = await loadConfig();
+      if (cfg.webhook_token) return cfg.webhook_token as string;
+      const token = crypto.randomUUID().replace(/-/g, "");
+      await saveConfig({ webhook_token: token });
+      return token;
+    };
+
+    if (action === "webhook_info") {
+      const cfg = await loadConfig();
+      const token = await ensureWebhookToken();
+      return json(200, {
+        url: webhookUrl(token),
+        registered: !!cfg.webhook_id,
+        webhook_id: cfg.webhook_id ?? null,
+      });
+    }
+
+    if (action === "register_webhook") {
+      const token = await ensureWebhookToken();
+      const cfg = await loadConfig();
+
+      let secret = "";
+      const { data: existingSecret } = await admin
+        .from("org_secrets")
+        .select("key_value")
+        .eq("org_id", orgId)
+        .eq("key_name", WEBHOOK_SECRET_NAME)
+        .maybeSingle();
+      secret = existingSecret?.key_value || "";
+      if (!secret) {
+        secret = crypto.randomUUID().replace(/-/g, "") + crypto.randomUUID().replace(/-/g, "");
+        const { error: secErr } = await admin.from("org_secrets").upsert(
+          { org_id: orgId, key_name: WEBHOOK_SECRET_NAME, key_value: secret },
+          { onConflict: "org_id,key_name" },
+        );
+        if (secErr) return json(500, { error: "secret_save_failed", detail: secErr.message });
+      }
+
+      const payload = {
+        name: "CRM Inbox",
+        url: webhookUrl(token),
+        events: WEBHOOK_EVENTS,
+        secret,
+        isActive: true,
+      };
+
+      const res = cfg.webhook_id
+        ? await zernio(apiKey, "PUT", "/webhooks/settings", { _id: cfg.webhook_id, ...payload })
+        : await zernio(apiKey, "POST", "/webhooks/settings", payload);
+
+      if (!res.ok) return upstreamError(res.status, res.body);
+      const hook = res.body?.webhook ?? res.body?.data ?? res.body;
+      const hookId = hook?._id ?? hook?.id ?? cfg.webhook_id ?? null;
+      await saveConfig({ webhook_id: hookId, webhook_registered_at: new Date().toISOString() });
+      return json(200, { ok: true, webhook_id: hookId, url: webhookUrl(token) });
+    }
+
+    if (action === "unregister_webhook") {
+      const cfg = await loadConfig();
+      if (cfg.webhook_id) {
+        await zernio(apiKey, "DELETE", `/webhooks/settings?_id=${encodeURIComponent(cfg.webhook_id)}`)
+          .catch(() => null);
+      }
+      await saveConfig({ webhook_id: null, webhook_registered_at: null });
+      return json(200, { ok: true });
+    }
+
+    const resolveAccountId = async () => {
+      const cfg = await loadConfig();
+      return (body.account_id?.trim() || cfg.account_id || "") as string;
+    };
+
+    const linkFor = async (phone: string) => {
+      const cands = phoneCandidates(phone);
+      if (!cands.length) return { patient_id: null, contact_id: null };
+      const suffix = cands.reduce((a, b) => (a.length >= b.length ? a : b)).slice(-8);
+      const { data: patients } = await admin
+        .from("patients").select("id, phone").eq("org_id", orgId).ilike("phone", `%${suffix}%`).limit(20);
+      const { data: contacts } = await admin
+        .from("contacts").select("id, phone").eq("org_id", orgId).ilike("phone", `%${suffix}%`).limit(20);
+      return {
+        patient_id: (patients ?? []).find((p: any) => cands.includes(digits(p.phone)))?.id ?? null,
+        contact_id: (contacts ?? []).find((c: any) => cands.includes(digits(c.phone)))?.id ?? null,
+      };
+    };
+
+    if (action === "sync_conversations") {
+      const accountId = await resolveAccountId();
+      if (!accountId) return json(200, { error: "not_connected" });
+
+      const res = await zernio(
+        apiKey,
+        "GET",
+        `/inbox/conversations?accountId=${encodeURIComponent(accountId)}&platform=whatsapp&limit=50`,
+      );
+      if (!res.ok) return upstreamError(res.status, res.body);
+      const list = res.body?.data ?? res.body?.conversations ?? [];
+
+      let saved = 0;
+      for (const c of Array.isArray(list) ? list : []) {
+        const phone = digits(c.participantId ?? c.participantName ?? "");
+        const link = await linkFor(phone);
+        const { error } = await admin.from("whatsapp_conversations").upsert(
+          {
+            org_id: orgId,
+            zernio_conversation_id: c.id,
+            zernio_account_id: c.accountId ?? accountId,
+            phone: phone || null,
+            display_name: c.participantName ?? null,
+            avatar_url: c.participantPicture ?? null,
+            last_message_at: c.updatedTime ?? null,
+            last_message_preview: (c.lastMessage ?? "").slice(0, 200),
+            status: c.status ?? "active",
+            ...link,
+          },
+          { onConflict: "org_id,zernio_conversation_id" },
+        );
+        if (!error) saved++;
+      }
+      return json(200, { ok: true, count: saved });
+    }
+
+    if (action === "sync_messages") {
+      const accountId = await resolveAccountId();
+      const conversationId = body.conversation_id?.trim();
+      if (!accountId || !conversationId) return json(400, { error: "missing_parameters" });
+
+      const { data: conv } = await admin
+        .from("whatsapp_conversations")
+        .select("id")
+        .eq("org_id", orgId)
+        .eq("zernio_conversation_id", conversationId)
+        .maybeSingle();
+      if (!conv) return json(404, { error: "conversation_not_found" });
+
+      const res = await zernio(
+        apiKey,
+        "GET",
+        `/inbox/conversations/${encodeURIComponent(conversationId)}/messages?accountId=${encodeURIComponent(accountId)}&limit=100&sortOrder=asc`,
+      );
+      if (!res.ok) return upstreamError(res.status, res.body);
+      const messages = res.body?.messages ?? [];
+
+      const rows = (Array.isArray(messages) ? messages : []).map((m: any) => {
+        const att = Array.isArray(m.attachments) ? m.attachments[0] : null;
+        return {
+          org_id: orgId,
+          conversation_id: conv.id,
+          zernio_message_id: m.id,
+          direction: (m.direction ?? "").toLowerCase() === "outgoing" ? "outbound" : "inbound",
+          body: m.message ?? m.text ?? "",
+          media_url: att?.url ?? null,
+          media_type: att?.type ?? null,
+          status: m.deliveryStatus ?? null,
+          sent_at: m.createdAt ?? new Date().toISOString(),
+          raw: m,
+        };
+      });
+
+      if (rows.length) {
+        const { error } = await admin
+          .from("whatsapp_messages")
+          .upsert(rows, { onConflict: "org_id,zernio_message_id" });
+        if (error) return json(500, { error: "save_failed", detail: error.message });
+      }
+      return json(200, { ok: true, count: rows.length });
+    }
+
+    if (action === "send_message") {
+      const accountId = await resolveAccountId();
+      const conversationId = body.conversation_id?.trim();
+      const text = body.message?.trim();
+      if (!accountId || !conversationId || !text) return json(400, { error: "missing_parameters" });
+
+      const res = await zernio(
+        apiKey,
+        "POST",
+        `/inbox/conversations/${encodeURIComponent(conversationId)}/messages`,
+        { accountId, message: text },
+      );
+      if (!res.ok) return upstreamError(res.status, res.body);
+
+      const sent = res.body?.message ?? res.body?.data ?? res.body ?? {};
+      const messageId = sent?.id ?? sent?._id ?? null;
+
+      const { data: conv } = await admin
+        .from("whatsapp_conversations")
+        .select("id")
+        .eq("org_id", orgId)
+        .eq("zernio_conversation_id", conversationId)
+        .maybeSingle();
+
+      if (conv) {
+        const sentAt = sent?.createdAt ?? new Date().toISOString();
+        await admin.from("whatsapp_messages").upsert(
+          {
+            org_id: orgId,
+            conversation_id: conv.id,
+            zernio_message_id: messageId ?? `local-${crypto.randomUUID()}`,
+            direction: "outbound",
+            body: text,
+            status: "sent",
+            sent_at: sentAt,
+            sent_by: user.id,
+            raw: sent ?? {},
+          },
+          { onConflict: "org_id,zernio_message_id" },
+        );
+        await admin
+          .from("whatsapp_conversations")
+          .update({ last_message_at: sentAt, last_message_preview: text.slice(0, 200) })
+          .eq("id", conv.id);
+      }
+
+      return json(200, { ok: true, message_id: messageId });
+    }
+
+    if (action === "mark_read") {
+      const accountId = await resolveAccountId();
+      const conversationId = body.conversation_id?.trim();
+      if (!conversationId) return json(400, { error: "missing_parameters" });
+
+      await admin
+        .from("whatsapp_conversations")
+        .update({ unread_count: 0 })
+        .eq("org_id", orgId)
+        .eq("zernio_conversation_id", conversationId);
+
+      if (accountId) {
+        await zernio(apiKey, "POST", `/inbox/conversations/${encodeURIComponent(conversationId)}/read`, {
+          accountId,
+        }).catch(() => null);
+      }
+      return json(200, { ok: true });
+    }
+
     return json(400, { error: "unknown_action" });
+
   } catch (err) {
     console.error("zernio-connect error", err);
     return json(500, { error: "Internal error", detail: String(err) });

@@ -2030,6 +2030,184 @@ export type Database = {
           },
         ]
       }
+      whatsapp_conversations: {
+        Row: {
+          avatar_url: string | null
+          contact_id: string | null
+          created_at: string
+          display_name: string | null
+          id: string
+          last_inbound_at: string | null
+          last_message_at: string | null
+          last_message_preview: string | null
+          org_id: string
+          patient_id: string | null
+          phone: string | null
+          status: string
+          unread_count: number
+          updated_at: string
+          zernio_account_id: string | null
+          zernio_conversation_id: string
+        }
+        Insert: {
+          avatar_url?: string | null
+          contact_id?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          last_inbound_at?: string | null
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          org_id: string
+          patient_id?: string | null
+          phone?: string | null
+          status?: string
+          unread_count?: number
+          updated_at?: string
+          zernio_account_id?: string | null
+          zernio_conversation_id: string
+        }
+        Update: {
+          avatar_url?: string | null
+          contact_id?: string | null
+          created_at?: string
+          display_name?: string | null
+          id?: string
+          last_inbound_at?: string | null
+          last_message_at?: string | null
+          last_message_preview?: string | null
+          org_id?: string
+          patient_id?: string | null
+          phone?: string | null
+          status?: string
+          unread_count?: number
+          updated_at?: string
+          zernio_account_id?: string | null
+          zernio_conversation_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_conversations_contact_id_fkey"
+            columns: ["contact_id"]
+            isOneToOne: false
+            referencedRelation: "contacts"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_conversations_patient_id_fkey"
+            columns: ["patient_id"]
+            isOneToOne: false
+            referencedRelation: "patients"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      whatsapp_messages: {
+        Row: {
+          body: string | null
+          conversation_id: string
+          created_at: string
+          direction: string
+          id: string
+          media_type: string | null
+          media_url: string | null
+          org_id: string
+          raw: Json
+          sent_at: string
+          sent_by: string | null
+          status: string | null
+          zernio_message_id: string | null
+        }
+        Insert: {
+          body?: string | null
+          conversation_id: string
+          created_at?: string
+          direction: string
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          org_id: string
+          raw?: Json
+          sent_at?: string
+          sent_by?: string | null
+          status?: string | null
+          zernio_message_id?: string | null
+        }
+        Update: {
+          body?: string | null
+          conversation_id?: string
+          created_at?: string
+          direction?: string
+          id?: string
+          media_type?: string | null
+          media_url?: string | null
+          org_id?: string
+          raw?: Json
+          sent_at?: string
+          sent_by?: string | null
+          status?: string | null
+          zernio_message_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "whatsapp_messages_conversation_id_fkey"
+            columns: ["conversation_id"]
+            isOneToOne: false
+            referencedRelation: "whatsapp_conversations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "whatsapp_messages_sent_by_fkey"
+            columns: ["sent_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      zernio_webhook_events: {
+        Row: {
+          event_id: string
+          event_type: string | null
+          org_id: string | null
+          received_at: string
+        }
+        Insert: {
+          event_id: string
+          event_type?: string | null
+          org_id?: string | null
+          received_at?: string
+        }
+        Update: {
+          event_id?: string
+          event_type?: string | null
+          org_id?: string | null
+          received_at?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "zernio_webhook_events_org_id_fkey"
+            columns: ["org_id"]
+            isOneToOne: false
+            referencedRelation: "organizations"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
     }
     Views: {
       [_ in never]: never
