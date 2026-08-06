@@ -38,6 +38,19 @@
     --success-foreground: 0 0% 100%;
     --warning: 38 92% 50%;
     --warning-foreground: 0 0% 100%;
+
+    /* WhatsApp-like chat surface */
+    --wa-panel: 0 0% 100%;
+    --wa-panel-foreground: 200 8% 20%;
+    --wa-wallpaper: 44 25% 90%;
+    --wa-bubble-in: 0 0% 100%;
+    --wa-bubble-out: 100 55% 88%;
+    --wa-bubble-foreground: 200 10% 15%;
+    --wa-meta: 200 6% 45%;
+    --wa-accent: 160 82% 32%;
+    --wa-accent-foreground: 0 0% 100%;
+    --wa-divider: 200 10% 88%;
+
   }
 
   .dark {
