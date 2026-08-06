@@ -199,7 +199,7 @@ export default function Chat() {
   const windowOpen = isWindowOpen(active);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col overflow-hidden">
+    <div className="flex h-[calc(100dvh-9.5rem)] flex-col overflow-hidden rounded-xl border border-wa-divider md:h-[calc(100dvh-7.5rem)]">
       <header className="flex items-center justify-between gap-3 border-b border-wa-divider bg-wa-panel px-4 py-2.5 text-wa-panel-foreground">
         <div>
           <h1 className="text-base font-semibold">Chat</h1>
