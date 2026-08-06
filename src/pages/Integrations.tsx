@@ -25,6 +25,7 @@ import {
   Check, ExternalLink, RefreshCw, Eye, EyeOff, Loader2, Globe, Zap, Mail, Phone,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ZernioWhatsAppCard } from "@/components/settings/ZernioWhatsAppCard";
 
 // ── Types ──
 type IntegrationConfig = {
