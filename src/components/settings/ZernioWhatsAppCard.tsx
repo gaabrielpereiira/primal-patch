@@ -67,7 +67,11 @@ export function ZernioWhatsAppCard({ orgId }: { orgId: string | null }) {
   );
 
   const fetchCfg = useCallback(async () => {
-    if (!orgId) return;
+    if (!orgId) {
+      setCfg(null);
+      setLoading(false);
+      return null;
+    }
     setLoading(true);
     const { data } = await (supabase as any)
       .from("integration_configs")
