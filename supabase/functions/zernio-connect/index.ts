@@ -424,25 +424,92 @@ serve(async (req) => {
       for (const c of Array.isArray(list) ? list : []) {
         const phone = digits(c.participantId ?? c.participantName ?? "");
         const link = await linkFor(phone);
-        const { error } = await admin.from("whatsapp_conversations").upsert(
-          {
-            org_id: orgId,
-            zernio_conversation_id: c.id,
-            zernio_account_id: c.accountId ?? accountId,
-            phone: phone || null,
-            display_name: c.participantName ?? null,
-            avatar_url: c.participantPicture ?? null,
-            last_message_at: c.updatedTime ?? null,
-            last_message_preview: (c.lastMessage ?? "").slice(0, 200),
-            status: c.status ?? "active",
-            ...link,
-          },
-          { onConflict: "org_id,zernio_conversation_id" },
-        );
+        const { data: row, error } = await admin
+          .from("whatsapp_conversations")
+          .upsert(
+            {
+              org_id: orgId,
+              zernio_conversation_id: c.id,
+              zernio_account_id: c.accountId ?? accountId,
+              phone: phone || null,
+              display_name: c.participantName ?? null,
+              last_message_at: c.updatedTime ?? null,
+              last_message_preview: (c.lastMessage ?? "").slice(0, 200),
+              status: c.status ?? "active",
+              ...link,
+            },
+            { onConflict: "org_id,zernio_conversation_id" },
+          )
+          .select("id, avatar_url")
+          .maybeSingle();
         if (!error) saved++;
+
+        const picture = pickPicture(c.participantPicture, c.picture, c.avatar);
+        if (row?.id && picture && !row.avatar_url) {
+          const path = await cacheAvatar(admin, orgId, row.id, picture);
+          if (path) await admin.from("whatsapp_conversations").update({ avatar_url: path }).eq("id", row.id);
+        }
       }
       return json(200, { ok: true, count: saved });
     }
+
+    if (action === "refresh_avatars") {
+      const accountId = await resolveAccountId();
+      if (!accountId) return json(200, { error: "not_connected" });
+
+      const ids: string[] = Array.isArray(body.conversation_ids) ? body.conversation_ids : [];
+      let query = admin
+        .from("whatsapp_conversations")
+        .select("id, zernio_conversation_id, avatar_url, patient_id, contact_id")
+        .eq("org_id", orgId)
+        .is("avatar_url", null)
+        .order("last_message_at", { ascending: false, nullsFirst: false })
+        .limit(ids.length ? ids.length : 30);
+      if (ids.length) query = query.in("zernio_conversation_id", ids);
+
+      const { data: convs } = await query;
+      let updated = 0;
+
+      for (const conv of convs ?? []) {
+        let picture: string | null = null;
+
+        const res = await zernio(
+          apiKey,
+          "GET",
+          `/inbox/conversations/${encodeURIComponent(conv.zernio_conversation_id)}/messages?accountId=${encodeURIComponent(accountId)}&limit=10&sortOrder=desc`,
+        ).catch(() => null);
+        const msgs = res?.body?.messages ?? res?.body?.data ?? [];
+        for (const m of Array.isArray(msgs) ? msgs : []) {
+          picture = pickPicture(
+            m?.sender?.picture,
+            m?.sender?.avatar,
+            m?.senderPicture,
+            m?.participantPicture,
+          );
+          if (picture) break;
+        }
+
+        if (!picture && (conv.patient_id || conv.contact_id)) {
+          const table = conv.patient_id ? "patients" : "contacts";
+          const { data: person } = await admin
+            .from(table)
+            .select("avatar_url")
+            .eq("id", conv.patient_id ?? conv.contact_id)
+            .maybeSingle();
+          picture = pickPicture(person?.avatar_url);
+        }
+
+        if (!picture) continue;
+        const path = await cacheAvatar(admin, orgId, conv.id, picture);
+        if (path) {
+          await admin.from("whatsapp_conversations").update({ avatar_url: path }).eq("id", conv.id);
+          updated++;
+        }
+      }
+
+      return json(200, { ok: true, updated });
+    }
+
 
     if (action === "sync_messages") {
       const accountId = await resolveAccountId();
