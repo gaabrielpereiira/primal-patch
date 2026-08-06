@@ -1,5 +1,11 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
-import { WEBHOOK_SECRET_NAME, digits, phoneCandidates } from "../_shared/zernio.ts";
+import {
+  WEBHOOK_SECRET_NAME,
+  cacheAvatar,
+  digits,
+  phoneCandidates,
+  pickPicture,
+} from "../_shared/zernio.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
