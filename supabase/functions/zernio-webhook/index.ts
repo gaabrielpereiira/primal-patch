@@ -143,12 +143,15 @@ async function upsertConversation(
   if (existing) {
     const patch: Record<string, unknown> = {};
     if (params.name) patch.display_name = params.name;
-    if (params.avatar) patch.avatar_url = params.avatar;
     if (params.phone && !existing.phone) patch.phone = params.phone;
     if (params.accountId) patch.zernio_account_id = params.accountId;
     if (!existing.patient_id && !existing.contact_id) {
       const link = await findLink(admin, orgId, params.phone ?? existing.phone ?? "");
       Object.assign(patch, link);
+    }
+    if (params.avatar) {
+      const path = await cacheAvatar(admin, orgId, existing.id, params.avatar);
+      if (path) patch.avatar_url = path;
     }
     if (Object.keys(patch).length) {
       await admin.from("whatsapp_conversations").update(patch).eq("id", existing.id);
@@ -165,14 +168,19 @@ async function upsertConversation(
       zernio_account_id: params.accountId,
       phone: params.phone,
       display_name: params.name,
-      avatar_url: params.avatar,
       ...link,
     })
     .select("id")
     .single();
   if (error) throw new Error(`conversation_insert_failed: ${error.message}`);
+
+  if (params.avatar) {
+    const path = await cacheAvatar(admin, orgId, inserted.id, params.avatar);
+    if (path) await admin.from("whatsapp_conversations").update({ avatar_url: path }).eq("id", inserted.id);
+  }
   return inserted.id as string;
 }
+
 
 function extractMessage(event: any) {
   const m = event?.message ?? {};
