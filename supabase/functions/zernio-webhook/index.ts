@@ -3,6 +3,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2";
 import {
   PROVIDER,
   WEBHOOK_SECRET_NAME,
+  cacheAvatar,
   digits,
   hmacSha256Hex,
   phoneCandidates,
