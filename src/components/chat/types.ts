@@ -44,8 +44,12 @@ export function formatPhone(phone: string | null) {
 }
 
 export function conversationTitle(c: WaConversation) {
-  return c.display_name?.trim() || formatPhone(c.phone) || "Sem nome";
+  const name = c.display_name?.trim();
+  // Alguns contatos vêm sem nome salvo — o número aparece como "display_name".
+  if (name && /\p{L}/u.test(name)) return name;
+  return formatPhone(name || c.phone) || "Sem nome";
 }
+
 
 export function formatTime(iso: string | null) {
   if (!iso) return "";

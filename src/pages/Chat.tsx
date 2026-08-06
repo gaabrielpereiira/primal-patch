@@ -5,11 +5,12 @@ import { useOrg } from "@/hooks/useOrg";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { MessageSquare, RefreshCw, Loader2, Plug } from "lucide-react";
+import { MessageSquare, RefreshCw, Loader2, Plug, ArrowLeft } from "lucide-react";
 import { ConversationList } from "@/components/chat/ConversationList";
 import { MessageList } from "@/components/chat/MessageList";
 import { MessageComposer } from "@/components/chat/MessageComposer";
+import { WaAvatar } from "@/components/chat/WaAvatar";
+import { useAvatarUrls } from "@/components/chat/useAvatarUrls";
 import {
   conversationTitle,
   formatPhone,
@@ -30,6 +31,8 @@ export default function Chat() {
   const [loadingConvs, setLoadingConvs] = useState(true);
   const [loadingMsgs, setLoadingMsgs] = useState(false);
   const [syncing, setSyncing] = useState(false);
+
+  const avatarFor = useAvatarUrls(conversations);
 
   const active = useMemo(
     () => conversations.find((c) => c.zernio_conversation_id === conversationId) ?? null,
@@ -87,6 +90,22 @@ export default function Chat() {
     void loadConversations();
   }, [loadConversations]);
 
+  // Busca as fotos que ainda faltam, uma vez por carga da tela
+  useEffect(() => {
+    if (!orgId || loadingConvs) return;
+    if (!conversations.some((c) => !c.avatar_url)) return;
+    let cancelled = false;
+    void callZernio("refresh_avatars")
+      .then((res) => {
+        if (!cancelled && res?.updated) void loadConversations();
+      })
+      .catch(() => null);
+    return () => {
+      cancelled = true;
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [orgId, loadingConvs]);
+
   // Realtime: novas conversas e mensagens
   useEffect(() => {
     if (!orgId) return;
@@ -126,6 +145,11 @@ export default function Chat() {
     void callZernio("sync_messages", { conversation_id: active.zernio_conversation_id })
       .then(() => loadMessages(active.id))
       .catch(() => null);
+    if (!active.avatar_url) {
+      void callZernio("refresh_avatars", { conversation_ids: [active.zernio_conversation_id] })
+        .then((res) => (res?.updated ? loadConversations() : null))
+        .catch(() => null);
+    }
     if (active.unread_count > 0) {
       void callZernio("mark_read", { conversation_id: active.zernio_conversation_id }).catch(() => null);
     }
@@ -137,6 +161,7 @@ export default function Chat() {
     try {
       await callZernio("register_webhook");
       await callZernio("sync_conversations");
+      await callZernio("refresh_avatars").catch(() => null);
       await loadConversations();
       toast({ title: "Conversas sincronizadas" });
     } catch (e: any) {
@@ -174,14 +199,14 @@ export default function Chat() {
   const windowOpen = isWindowOpen(active);
 
   return (
-    <div className="flex h-[calc(100vh-4rem)] flex-col">
-      <header className="flex items-center justify-between gap-3 border-b border-border px-4 py-3">
+    <div className="flex h-[calc(100dvh-9.5rem)] flex-col overflow-hidden rounded-xl border border-wa-divider md:h-[calc(100dvh-7.5rem)]">
+      <header className="flex items-center justify-between gap-3 border-b border-wa-divider bg-wa-panel px-4 py-2.5 text-wa-panel-foreground">
         <div>
-          <h1 className="text-lg font-semibold">Chat</h1>
-          <p className="text-xs text-muted-foreground">WhatsApp conectado via Zernio</p>
+          <h1 className="text-base font-semibold">Chat</h1>
+          <p className="text-xs text-wa-meta">WhatsApp conectado via Zernio</p>
         </div>
         <div className="flex items-center gap-2">
-          <Button variant="outline" size="sm" onClick={() => navigate("/settings/integrations")}>
+          <Button variant="ghost" size="sm" onClick={() => navigate("/settings/integrations")}>
             <Plug className="mr-2 h-4 w-4" />
             Integração
           </Button>
@@ -192,8 +217,8 @@ export default function Chat() {
         </div>
       </header>
 
-      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[320px_1fr]">
-        <div className={active ? "hidden md:block" : "block"}>
+      <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(300px,360px)_1fr]">
+        <div className={active ? "hidden min-h-0 overflow-hidden md:block" : "block min-h-0 overflow-hidden"}>
           {loadingConvs ? (
             <div className="p-4 text-sm text-muted-foreground">Carregando conversas…</div>
           ) : (
@@ -203,36 +228,36 @@ export default function Chat() {
               search={search}
               onSearchChange={setSearch}
               onSelect={(c) => navigate(`/chat/${c.zernio_conversation_id}`)}
+              avatarFor={avatarFor}
             />
           )}
         </div>
 
         <div className="flex min-h-0 flex-col">
           {!active ? (
-            <div className="flex flex-1 flex-col items-center justify-center gap-2 p-8 text-center">
-              <MessageSquare className="h-10 w-10 text-muted-foreground" />
-              <p className="text-sm text-muted-foreground">
-                Selecione uma conversa para ver as mensagens.
+            <div className="wa-wallpaper flex flex-1 flex-col items-center justify-center gap-3 border-b-4 border-wa-accent p-8 text-center">
+              <MessageSquare className="h-16 w-16 text-wa-meta" strokeWidth={1} />
+              <h2 className="text-xl font-light text-wa-panel-foreground">Sua caixa de entrada</h2>
+              <p className="max-w-md text-sm text-wa-meta">
+                Selecione uma conversa à esquerda para ver as mensagens e responder pelo WhatsApp.
               </p>
             </div>
           ) : (
             <>
-              <div className="flex items-center gap-3 border-b border-border px-4 py-3">
+              <div className="flex items-center gap-3 border-b border-wa-divider bg-wa-panel px-3 py-2 text-wa-panel-foreground">
                 <Button
                   variant="ghost"
-                  size="sm"
+                  size="icon"
                   className="md:hidden"
                   onClick={() => navigate("/chat")}
+                  aria-label="Voltar"
                 >
-                  Voltar
+                  <ArrowLeft className="h-5 w-5" />
                 </Button>
-                <Avatar className="h-9 w-9">
-                  {active.avatar_url ? <AvatarImage src={active.avatar_url} alt="" /> : null}
-                  <AvatarFallback>{conversationTitle(active).slice(0, 2).toUpperCase()}</AvatarFallback>
-                </Avatar>
+                <WaAvatar name={conversationTitle(active)} src={avatarFor(active)} className="h-10 w-10" />
                 <div className="min-w-0 flex-1">
-                  <p className="truncate text-sm font-medium">{conversationTitle(active)}</p>
-                  <p className="truncate text-xs text-muted-foreground">{formatPhone(active.phone)}</p>
+                  <p className="truncate text-[15px] font-medium">{conversationTitle(active)}</p>
+                  <p className="truncate text-xs text-wa-meta">{formatPhone(active.phone)}</p>
                 </div>
                 {active.patient_id && <Badge variant="secondary">Paciente</Badge>}
                 {!active.patient_id && active.contact_id && <Badge variant="secondary">Contato</Badge>}

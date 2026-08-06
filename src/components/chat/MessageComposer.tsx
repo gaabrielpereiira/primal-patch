@@ -1,7 +1,6 @@
 import { useEffect, useRef, useState } from "react";
-import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
-import { Send, Loader2 } from "lucide-react";
+import { Send, Loader2, Smile, Paperclip } from "lucide-react";
 
 interface Props {
   disabled: boolean;
@@ -35,39 +34,49 @@ export function MessageComposer({ disabled, blockedReason, onSend, conversationK
 
   if (blockedReason) {
     return (
-      <div className="border-t border-border bg-muted/40 p-4 text-sm text-muted-foreground">
+      <div className="border-t border-wa-divider bg-wa-panel p-4 text-center text-sm text-wa-meta">
         {blockedReason}
       </div>
     );
   }
 
   return (
-    <div className="border-t border-border p-3">
-      <div className="flex items-end gap-2">
-        <Textarea
-          ref={ref}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={(e) => {
-            if (e.key === "Enter" && !e.shiftKey) {
-              e.preventDefault();
-              void submit();
-            }
-          }}
-          placeholder="Escreva uma mensagem…"
-          className="max-h-40 min-h-[44px] resize-none"
-          disabled={disabled || sending}
-          aria-label="Mensagem"
-        />
-        <Button
-          size="icon"
-          onClick={() => void submit()}
-          disabled={disabled || sending || !text.trim()}
-          aria-label="Enviar mensagem"
-        >
-          {sending ? <Loader2 className="h-4 w-4 animate-spin" /> : <Send className="h-4 w-4" />}
-        </Button>
+    <div className="flex items-end gap-2 border-t border-wa-divider bg-wa-panel px-3 py-2">
+      <div className="flex items-center gap-1 pb-1.5 text-wa-meta">
+        <button type="button" disabled aria-label="Emojis (em breve)" className="p-1.5 opacity-50">
+          <Smile className="h-5 w-5" />
+        </button>
+        <button type="button" disabled aria-label="Anexar (em breve)" className="p-1.5 opacity-50">
+          <Paperclip className="h-5 w-5" />
+        </button>
       </div>
+
+      <Textarea
+        ref={ref}
+        value={text}
+        onChange={(e) => setText(e.target.value)}
+        onKeyDown={(e) => {
+          if (e.key === "Enter" && !e.shiftKey) {
+            e.preventDefault();
+            void submit();
+          }
+        }}
+        placeholder="Digite uma mensagem"
+        rows={1}
+        className="max-h-40 min-h-[42px] resize-none rounded-2xl border-0 bg-wa-wallpaper px-4 py-2.5 text-[15px] focus-visible:ring-1"
+        disabled={disabled || sending}
+        aria-label="Mensagem"
+      />
+
+      <button
+        type="button"
+        onClick={() => void submit()}
+        disabled={disabled || sending || !text.trim()}
+        aria-label="Enviar mensagem"
+        className="mb-0.5 flex h-10 w-10 shrink-0 items-center justify-center rounded-full bg-wa-accent text-wa-accent-foreground transition-opacity disabled:opacity-40"
+      >
+        {sending ? <Loader2 className="h-5 w-5 animate-spin" /> : <Send className="h-5 w-5" />}
+      </button>
     </div>
   );
 }
