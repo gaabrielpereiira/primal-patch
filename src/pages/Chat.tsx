@@ -218,7 +218,7 @@ export default function Chat() {
       </header>
 
       <div className="grid min-h-0 flex-1 grid-cols-1 md:grid-cols-[minmax(300px,360px)_1fr]">
-        <div className={active ? "hidden md:block" : "block"}>
+        <div className={active ? "hidden min-h-0 overflow-hidden md:block" : "block min-h-0 overflow-hidden"}>
           {loadingConvs ? (
             <div className="p-4 text-sm text-muted-foreground">Carregando conversas…</div>
           ) : (
