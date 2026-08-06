@@ -67,7 +67,11 @@ export function ZernioWhatsAppCard({ orgId }: { orgId: string | null }) {
   );
 
   const fetchCfg = useCallback(async () => {
-    if (!orgId) return;
+    if (!orgId) {
+      setCfg(null);
+      setLoading(false);
+      return null;
+    }
     setLoading(true);
     const { data } = await (supabase as any)
       .from("integration_configs")
@@ -340,6 +344,10 @@ export function ZernioWhatsAppCard({ orgId }: { orgId: string | null }) {
               </Button>
             </div>
           </div>
+        ) : !orgId ? (
+          <p className="text-xs text-muted-foreground">
+            Organização não identificada. Recarregue a página ou entre novamente para configurar a Zernio.
+          </p>
         ) : (
           <div className="flex items-center justify-between gap-2">
             <p className="text-xs text-muted-foreground">Zernio não configurada.</p>
