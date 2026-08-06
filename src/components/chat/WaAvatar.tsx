@@ -26,20 +26,30 @@ interface Props {
 
 /** WhatsApp-style avatar: photo when available, otherwise coloured initials. */
 export function WaAvatar({ name, src, className }: Props) {
-  const initials = name
-    .split(/\s+/)
-    .filter(Boolean)
-    .slice(0, 2)
-    .map((w) => w[0])
-    .join("")
-    .toUpperCase() || "?";
+  const letters = name.replace(/[^\p{L}]/gu, "");
+  const initials = letters
+    ? name
+        .split(/\s+/)
+        .filter((w) => /\p{L}/u.test(w))
+        .slice(0, 2)
+        .map((w) => w[0])
+        .join("")
+        .toUpperCase()
+    : null;
 
   return (
     <Avatar className={cn("h-12 w-12 shrink-0", className)}>
       {src ? <AvatarImage src={src} alt={`Foto de ${name}`} loading="lazy" /> : null}
-      <AvatarFallback className={cn(PALETTE[hash(name) % PALETTE.length], "font-medium text-white")}>
-        {initials}
+      <AvatarFallback
+        className={cn(
+          initials ? PALETTE[hash(name) % PALETTE.length] : "bg-wa-divider",
+          "font-medium",
+          initials ? "text-[hsl(0_0%_100%)]" : "text-wa-meta",
+        )}
+      >
+        {initials ?? <User className="h-1/2 w-1/2" />}
       </AvatarFallback>
     </Avatar>
   );
 }
+
