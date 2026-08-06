@@ -26,6 +26,8 @@ const Integrations = lazy(() => import("./pages/Integrations"));
 const SecuritySettings = lazy(() => import("./pages/SecuritySettings"));
 const Team = lazy(() => import("./pages/Team"));
 const Pipeline = lazy(() => import("./pages/Pipeline"));
+const Chat = lazy(() => import("./pages/Chat"));
+
 
 // CRM Saúde
 const Patients = lazy(() => import("./pages/Patients"));
