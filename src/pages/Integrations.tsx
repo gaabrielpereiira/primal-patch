@@ -242,6 +242,8 @@ function IntegrationsTab({ orgId, userId }: { orgId: string | null; userId?: str
         <ResendCard orgId={orgId} />
         {/* WhatsApp — Evolution API */}
         <EvolutionApiCard orgId={orgId} />
+        {/* WhatsApp — Zernio (coexistência) */}
+        <ZernioWhatsAppCard orgId={orgId} />
       </div>
 
       {/* Config Dialog */}
