@@ -57,6 +57,7 @@ interface Body {
   redirect_url?: string;
   conversation_id?: string;
   message?: string;
+  conversation_ids?: string[];
 }
 
 
