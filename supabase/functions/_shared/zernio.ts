@@ -53,3 +53,45 @@ export function timingSafeEqual(a: string, b: string): boolean {
   for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
   return diff === 0;
 }
+
+export const AVATAR_BUCKET = "whatsapp-avatars";
+
+/**
+ * Downloads a WhatsApp profile picture (its CDN URLs expire) and stores a
+ * stable copy in the private `whatsapp-avatars` bucket.
+ * Returns the storage object path, or null when nothing could be stored.
+ */
+export async function cacheAvatar(
+  admin: any,
+  orgId: string,
+  conversationRowId: string,
+  sourceUrl: string | null | undefined,
+): Promise<string | null> {
+  if (!sourceUrl || !/^https?:\/\//i.test(sourceUrl)) return null;
+  try {
+    const resp = await fetch(sourceUrl);
+    if (!resp.ok) return null;
+    const contentType = resp.headers.get("content-type") ?? "image/jpeg";
+    if (!contentType.startsWith("image/")) return null;
+    const bytes = new Uint8Array(await resp.arrayBuffer());
+    if (!bytes.length || bytes.length > 5_000_000) return null;
+
+    const ext = contentType.includes("png") ? "png" : contentType.includes("webp") ? "webp" : "jpg";
+    const path = `${orgId}/${conversationRowId}.${ext}`;
+    const { error } = await admin.storage
+      .from(AVATAR_BUCKET)
+      .upload(path, bytes, { contentType, upsert: true });
+    if (error) return null;
+    return path;
+  } catch {
+    return null;
+  }
+}
+
+/** Picks the first usable picture URL out of a Zernio payload. */
+export function pickPicture(...candidates: unknown[]): string | null {
+  for (const c of candidates) {
+    if (typeof c === "string" && /^https?:\/\//i.test(c)) return c;
+  }
+  return null;
+}
