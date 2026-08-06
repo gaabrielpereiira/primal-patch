@@ -25,6 +25,7 @@ import {
   Check, ExternalLink, RefreshCw, Eye, EyeOff, Loader2, Globe, Zap, Mail, Phone,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { ZernioWhatsAppCard } from "@/components/settings/ZernioWhatsAppCard";
 
 // ── Types ──
 type IntegrationConfig = {
@@ -242,6 +243,8 @@ function IntegrationsTab({ orgId, userId }: { orgId: string | null; userId?: str
         <ResendCard orgId={orgId} />
         {/* WhatsApp — Evolution API */}
         <EvolutionApiCard orgId={orgId} />
+        {/* WhatsApp — Zernio (coexistência) */}
+        <ZernioWhatsAppCard orgId={orgId} />
       </div>
 
       {/* Config Dialog */}
