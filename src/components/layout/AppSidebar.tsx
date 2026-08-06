@@ -17,6 +17,8 @@ import {
   LogOut,
   HelpCircle,
   Stethoscope,
+  MessageSquare,
+
 } from "lucide-react";
 import { HelpCenter } from "@/components/help/HelpCenter";
 import { NavLink } from "@/components/NavLink";

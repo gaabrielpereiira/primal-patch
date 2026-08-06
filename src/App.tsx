@@ -80,6 +80,9 @@ const App = () => (
                 <Route path="/activities" element={<SuspenseRoute><Activities /></SuspenseRoute>} />
                 <Route path="/pipeline" element={<SuspenseRoute><Pipeline /></SuspenseRoute>} />
                 <Route path="/tasks" element={<SuspenseRoute><Tasks /></SuspenseRoute>} />
+                <Route path="/chat" element={<SuspenseRoute><Chat /></SuspenseRoute>} />
+                <Route path="/chat/:conversationId" element={<SuspenseRoute><Chat /></SuspenseRoute>} />
+
                 <Route path="/reports" element={<SuspenseRoute><Reports /></SuspenseRoute>} />
                 <Route path="/automations" element={<SuspenseRoute><Automations /></SuspenseRoute>} />
                 <Route path="/templates" element={<SuspenseRoute><Templates /></SuspenseRoute>} />
