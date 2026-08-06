@@ -1,4 +1,5 @@
 import { serve } from "https://deno.land/std@0.168.0/http/server.ts";
+import { WEBHOOK_SECRET_NAME, digits, phoneCandidates } from "../_shared/zernio.ts";
 
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
@@ -10,6 +11,17 @@ const ZERNIO_BASE = "https://zernio.com/api/v1";
 const PROVIDER = "zernio_whatsapp";
 const SECRET_NAME = "zernio_api_key";
 
+const WEBHOOK_EVENTS = [
+  "message.received",
+  "message.sent",
+  "message.delivered",
+  "message.read",
+  "message.failed",
+  "conversation.started",
+  "account.connected",
+  "account.disconnected",
+];
+
 type Action =
   | "verify"
   | "list_profiles"
@@ -18,7 +30,14 @@ type Action =
   | "list_phone_numbers"
   | "select_phone_number"
   | "list_accounts"
-  | "disconnect";
+  | "disconnect"
+  | "webhook_info"
+  | "register_webhook"
+  | "unregister_webhook"
+  | "sync_conversations"
+  | "sync_messages"
+  | "send_message"
+  | "mark_read";
 
 interface Body {
   action?: Action;
@@ -29,7 +48,10 @@ interface Body {
   account_id?: string;
   phone_number_id?: string;
   redirect_url?: string;
+  conversation_id?: string;
+  message?: string;
 }
+
 
 function json(status: number, payload: Record<string, unknown>) {
   return new Response(JSON.stringify(payload), {
