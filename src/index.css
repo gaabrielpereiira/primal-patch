@@ -168,3 +168,33 @@
   animation-timing-function: ease-out;
   animation-fill-mode: both;
 }
+
+/* WhatsApp-style chat wallpaper */
+.wa-wallpaper {
+  background-color: hsl(var(--wa-wallpaper));
+  background-image:
+    radial-gradient(hsl(var(--wa-meta) / 0.10) 1px, transparent 1px),
+    radial-gradient(hsl(var(--wa-meta) / 0.07) 1px, transparent 1px);
+  background-size: 28px 28px, 28px 28px;
+  background-position: 0 0, 14px 14px;
+}
+
+/* Bubble tails */
+.wa-bubble-out::after,
+.wa-bubble-in::after {
+  content: "";
+  position: absolute;
+  top: 0;
+  width: 10px;
+  height: 14px;
+}
+.wa-bubble-out::after {
+  right: -8px;
+  background: hsl(var(--wa-bubble-out));
+  clip-path: polygon(0 0, 100% 0, 0 100%);
+}
+.wa-bubble-in::after {
+  left: -8px;
+  background: hsl(var(--wa-bubble-in));
+  clip-path: polygon(0 0, 100% 0, 100% 100%);
+}
