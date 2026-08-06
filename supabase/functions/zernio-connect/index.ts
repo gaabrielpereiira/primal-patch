@@ -43,7 +43,8 @@ type Action =
   | "sync_conversations"
   | "sync_messages"
   | "send_message"
-  | "mark_read";
+  | "mark_read"
+  | "refresh_avatars";
 
 interface Body {
   action?: Action;
